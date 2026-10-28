@@ -1,0 +1,20 @@
+{
+  "name": "r1-boy",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "vite build",
+    "preview": "vite preview --host",
+    "qr": "node scripts/qr.js"
+  },
+  "devDependencies": {
+    "qrcode": "^1.5.4",
+    "vite": "^5.4.21"
+  },
+  "dependencies": {
+    "hls.js": "^1.5.17",
+    "leaflet": "^1.9.4"
+  }
+}
