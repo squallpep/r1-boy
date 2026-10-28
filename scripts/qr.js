@@ -1,8 +1,9 @@
 // Generates the R1 "creation" install QR code for a deployed URL.
-// Usage: npm run qr -- https://you.github.io/r1-boy/
+// Usage: npm run qr -- https://you.github.io/r1-boy/ [output.png]
 import QRCode from 'qrcode';
 
 const url = process.argv[2];
+const outFile = process.argv[3] || 'install-qr.png';
 if (!url) {
   console.error('Usage: npm run qr -- <https://url-of-the-deployed-app/>');
   process.exit(1);
@@ -16,7 +17,7 @@ const payload = JSON.stringify({
   themeColor: '#1aff80',
 });
 
-await QRCode.toFile('install-qr.png', payload, { width: 512, margin: 2 });
+await QRCode.toFile(outFile, payload, { width: 512, margin: 2 });
 console.log(await QRCode.toString(payload, { type: 'terminal', small: true }));
 console.log(payload);
-console.log('\nQR enregistré dans install-qr.png. Scannez-le avec le R1 pour installer la creation.');
+console.log(`\nQR enregistré dans ${outFile}. Scannez-le avec le R1 pour installer la creation.`);
