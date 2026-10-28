@@ -1,7 +1,7 @@
 // Full-screen tool views opened from the INV lists. Each: { mount(el), unmount(), onScroll(d), onClick() }.
 import { state, save, emit, on } from '../../core/store.js';
 import { sfx } from '../../core/sfx.js';
-import { onAccel, onHeading, headingStats, bearing } from '../../core/sensors.js';
+import { onAccel, onHeading, headingStats, bearing, calibrate } from '../../core/sensors.js';
 import { gpsUsable, distance } from '../../core/geo.js';
 import { toast, pad, bar } from '../../ui/ui.js';
 
@@ -151,8 +151,8 @@ function dialSvg() {
     <path d="M50 1 v8" stroke-width="2"/></svg>`;
 }
 
-// Sources, best first: magnetometer (absolute orientation), gyroscope (relative, calibrated
-// by pointing north and clicking), GPS course computed while walking.
+// Sources, best first: magnetometer (absolute orientation), gyroscope (relative), GPS course
+// computed while walking. A two-click calibration (north, then east) fixes offset and direction.
 export const compassView = {
   mount(el) {
     el.innerHTML = `<div class="tool-view">${dialSvg()}<div class="big hd">---°</div>
@@ -163,7 +163,9 @@ export const compassView = {
     let lastSensor = 0;
     let gpsState = '...';
     this.src = null;
-    this.rawGyro = null;
+    this.raw = null;
+    this.calStep = 0;
+    this.msg = msg;
     const set = (h, label) => {
       // Unwrap so the CSS transition takes the short way around.
       shown += ((h - (shown % 360)) + 540) % 360 - 180;
@@ -175,10 +177,12 @@ export const compassView = {
     this.off = onHeading((h, src, raw) => {
       lastSensor = Date.now();
       this.src = src;
-      if (src === 'gyro') this.rawGyro = raw;
-      set(h, src === 'mag' ? 'MAGNÉTOMÈTRE'
-        : state.settings.compassOffset == null ? 'GYROSCOPE · FACE AU NORD, CLIC POUR CALIBRER'
-          : 'GYROSCOPE CALIBRÉ · CLIC : RECALIBRER');
+      this.raw = raw;
+      if (this.calStep) return set(h, this.calStep === 1
+        ? '1/2 · VISEZ LE NORD AVEC LE HAUT DU R1, PUIS CLIC'
+        : "2/2 · TOURNEZ-VOUS VERS L'EST (90° À DROITE), PUIS CLIC");
+      const cal = state.settings.compassCal ? 'CALIBRÉ' : 'NON CALIBRÉ · CLIC : CALIBRER';
+      set(h, `${src === 'mag' ? 'MAGNÉTOMÈTRE' : 'GYROSCOPE'} · ${cal}`);
     });
 
     if (gpsUsable()) {
@@ -213,13 +217,19 @@ export const compassView = {
     this.watch = null;
   },
   onClick() {
-    if (this.src === 'gyro' && this.rawGyro != null) {
-      state.settings.compassOffset = this.rawGyro;
-      save();
-      sfx.select();
-      toast('BOUSSOLE', 'NORD CALIBRÉ');
+    if (this.raw == null) return toast('BOUSSOLE', "AUCUN CAPTEUR D'ORIENTATION");
+    sfx.select();
+    if (this.calStep === 0) {
+      this.calStep = 1;
+      this.msg('1/2 · VISEZ LE NORD AVEC LE HAUT DU R1, PUIS CLIC');
+    } else if (this.calStep === 1) {
+      this.rawNorth = this.raw;
+      this.calStep = 2;
+      this.msg("2/2 · TOURNEZ-VOUS VERS L'EST (90° À DROITE), PUIS CLIC");
     } else {
-      toast('BOUSSOLE', this.src === 'mag' ? 'MAGNÉTOMÈTRE : AUCUN CALIBRAGE REQUIS' : 'AUCUN GYROSCOPE DÉTECTÉ');
+      this.calStep = 0;
+      if (calibrate(this.rawNorth, this.raw)) toast('BOUSSOLE', 'CALIBRAGE TERMINÉ');
+      else { sfx.error(); toast('BOUSSOLE', 'ROTATION TROP FAIBLE · RECOMMENCEZ'); }
     }
   },
 };

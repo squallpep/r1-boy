@@ -31,8 +31,9 @@ async function fetchWeather() {
     '&hourly=temperature_2m&daily=weather_code,temperature_2m_max,temperature_2m_min,uv_index_max,precipitation_probability_max' +
     '&timezone=auto&forecast_days=6';
   const data = await (await fetch(url)).json();
-  let place = pos.fallback ? 'PARIS (PAR DÉFAUT)' : pos.city ? `${pos.city.toUpperCase()} (IP)` : `${pos.lat.toFixed(2)}, ${pos.lon.toFixed(2)}`;
-  if (!pos.fallback && !pos.approx) {
+  let place = pos.src === 'DÉFAUT' ? 'PARIS (PAR DÉFAUT)'
+    : pos.city ? `${pos.city.toUpperCase()} (${pos.src})` : `${pos.lat.toFixed(2)}, ${pos.lon.toFixed(2)}`;
+  if (!pos.city && pos.src !== 'DÉFAUT') {
     try {
       const r = await (await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&zoom=10&lat=${pos.lat}&lon=${pos.lon}&accept-language=fr`)).json();
       const a = r.address || {};

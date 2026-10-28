@@ -277,3 +277,23 @@ p { margin: 3px 0; }
 .ai-reader .cur { animation: blink .6s steps(1) infinite; }
 /* Natural picture: the video sits above the CRT scanlines/vignette. */
 .tv-wrap:not(.phos) { z-index: 205; }
+
+/* Map: places, guidance, crosshair */
+.pin-poi {
+  width: 11px; height: 11px; line-height: 9px; font-size: 8px; text-align: center; color: var(--pb);
+  border: 1px solid var(--pb); background: rgba(0, 0, 0, .75); box-shadow: 0 0 3px var(--pb-50);
+}
+.pin-tgt { color: var(--pb); font-size: 14px; line-height: 14px; text-align: center; text-shadow: 0 0 6px var(--pb); animation: blink .8s steps(1) infinite; }
+.map .tgt-line { stroke: var(--pb); }
+.map .leaflet-overlay-pane svg { filter: none; }
+.cross { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 452; font-size: 18px; pointer-events: none; display: none; }
+.tgt-bar {
+  position: absolute; left: 4px; right: 4px; top: 15px; z-index: 451; display: none; justify-content: space-between; gap: 4px;
+  background: rgba(0, 0, 0, .78); border: 1px solid var(--pb-50); padding: 0 4px; font-size: 10px; white-space: nowrap; overflow: hidden;
+}
+.tgt-bar span { overflow: hidden; text-overflow: ellipsis; }
+.tgt-bar b { font-weight: normal; }
+.strip-tgt { position: absolute; top: -2px; transform: translateX(-50%); font-size: 8px; display: none; }
+.osm { font-size: 7px; opacity: .6; text-align: right; }
+.m-menu { max-height: 170px; overflow: hidden; }
+.nav-arrow { flex: none; }

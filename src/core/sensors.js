@@ -108,24 +108,28 @@ export function setPedometer(enabled) {
 // Diagnostic counters shown by the compass: which orientation events actually arrive.
 export const headingStats = { abs: 0, rel: 0, empty: 0 };
 
-// Heading of the device top edge. Flat: 360 - alpha. Held upright: tilt-compensated (W3C formula).
-function headingFrom(alpha, beta, gamma) {
-  if (Math.abs(beta ?? 0) < 45) return (360 - alpha + 360) % 360;
-  const d = Math.PI / 180;
-  const cX = Math.cos(beta * d), cY = Math.cos(gamma * d), cZ = Math.cos(alpha * d);
-  const sX = Math.sin(beta * d), sY = Math.sin(gamma * d), sZ = Math.sin(alpha * d);
-  const vx = -cZ * sY - sZ * sX * cY;
-  const vy = -sZ * sY + cZ * sX * cY;
-  let h = Math.atan(vx / vy);
-  if (vy < 0) h += Math.PI;
-  else if (vx < 0) h += 2 * Math.PI;
-  return (h * 180) / Math.PI;
+// Raw heading from orientation angles. The R1 sensor frame may be rotated or mirrored relative
+// to the screen, so the raw value is corrected by a two-point calibration (offset + direction).
+const rawHeading = (alpha) => (360 - alpha + 360) % 360;
+
+export function calibrated(raw) {
+  const c = state.settings.compassCal || { offset: 0, sign: 1 };
+  return ((c.sign * raw - c.offset) % 360 + 720) % 360;
+}
+
+// Two clicks: facing north, then facing east (90° to the right).
+export function calibrate(rawNorth, rawEast) {
+  const delta = ((rawEast - rawNorth + 540) % 360) - 180;
+  if (Math.abs(delta) < 30) return false;
+  const sign = delta > 0 ? 1 : -1;
+  state.settings.compassCal = { offset: sign * rawNorth, sign };
+  save();
+  return true;
 }
 
 /**
- * fn(heading, source): source is 'mag' (absolute, magnetometer) or 'gyro'
- * (relative alpha only; corrected by the north calibration offset).
- * Absolute events win: once one arrives, relative ones are ignored.
+ * fn(heading, source, raw): heading is calibrated; source is 'mag' (absolute orientation)
+ * or 'gyro' (relative only). Absolute events win: once one arrives, relative ones are ignored.
  */
 export function onHeading(fn) {
   let gotAbs = false;
@@ -134,19 +138,14 @@ export function onHeading(fn) {
       headingStats.empty++;
       return;
     }
-    if (typeof e.webkitCompassHeading === 'number') {
+    const raw = typeof e.webkitCompassHeading === 'number' ? e.webkitCompassHeading : rawHeading(e.alpha);
+    if (typeof e.webkitCompassHeading === 'number' || e.absolute || e.type === 'deviceorientationabsolute') {
       headingStats.abs++;
       gotAbs = true;
-      return fn(e.webkitCompassHeading, 'mag');
-    }
-    const h = headingFrom(e.alpha, e.beta, e.gamma);
-    if (e.absolute || e.type === 'deviceorientationabsolute') {
-      headingStats.abs++;
-      gotAbs = true;
-      return fn(h, 'mag');
+      return fn(calibrated(raw), 'mag', raw);
     }
     headingStats.rel++;
-    if (!gotAbs) fn((h - (state.settings.compassOffset || 0) + 360) % 360, 'gyro', h);
+    if (!gotAbs) fn(calibrated(raw), 'gyro', raw);
   };
   window.addEventListener('deviceorientationabsolute', handler);
   window.addEventListener('deviceorientation', handler);

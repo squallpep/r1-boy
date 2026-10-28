@@ -16,6 +16,8 @@ import weather from './apps/data/weather.js';
 import ai from './apps/data/ai.js';
 import config, { applyTheme } from './apps/data/config.js';
 import map from './apps/map/map.js';
+import nearby from './apps/map/nearby.js';
+import waypoints from './apps/map/waypoints.js';
 import radio from './apps/radio/radio.js';
 import tv from './apps/radio/tv.js';
 import { player } from './apps/radio/player.js';
@@ -24,7 +26,7 @@ const TABS = [
   { label: 'STAT', subs: [status, quests, perks] },
   { label: 'INV', subs: [toolsScreen, sensorsScreen] },
   { label: 'DATA', subs: [weather, ai, config] },
-  { label: 'MAP', subs: [map] },
+  { label: 'MAP', subs: [map, nearby, waypoints] },
   { label: 'RADIO', subs: [radio, tv] },
 ];
 const FLAT = TABS.flatMap((t, ti) => t.subs.map((_, si) => [ti, si]));

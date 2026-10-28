@@ -82,6 +82,31 @@ export function confirmBox(title, text) {
   });
 }
 
+// Action menu: items [{ label, value }] -> Promise<value | null>.
+export function menuBox(title, items) {
+  return new Promise((resolve) => {
+    const el = document.createElement('div');
+    el.className = 'modal';
+    el.innerHTML = `<div class="m-box"><div class="m-title">${esc(title)}</div>
+      <div class="m-menu">${items.map((it, i) => `<div class="it ${i ? '' : 'sel'}" data-i="${i}">${esc(it.label)}</div>`).join('')}</div></div>`;
+    let idx = 0;
+    const rows = el.querySelectorAll('.it');
+    const done = (v) => { el.remove(); modal = null; resolve(v); };
+    const paint = () => rows.forEach((r, i) => r.classList.toggle('sel', i === idx));
+    el.addEventListener('click', (e) => {
+      const r = e.target.closest('.it');
+      if (r) done(items[+r.dataset.i].value);
+      else if (e.target === el) done(null);
+    });
+    modal = {
+      click: () => done(items[idx].value),
+      back: () => done(null),
+      scroll: (d) => { idx = Math.max(0, Math.min(items.length - 1, idx + d)); paint(); },
+    };
+    app.append(el);
+  });
+}
+
 // ---- Small formatting helpers ----
 export const pad = (n, l = 2) => String(n).padStart(l, '0');
 

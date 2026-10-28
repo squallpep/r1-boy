@@ -9,6 +9,7 @@ const DEFAULTS = {
     pedometer: true,
     tvFilter: true,
     aiVoice: true,
+    mapPois: true,
     iptvUrl: 'https://iptv-org.github.io/iptv/languages/fra.m3u',
     customRadio: '',
   },
@@ -25,6 +26,9 @@ const DEFAULTS = {
     boots: 0,
   },
   places: [],
+  waypoints: [],
+  navTarget: null,
+  manualPos: null,
   quests: [
     { id: 'd-steps', title: 'MARCHER 10 000 PAS', type: 'daily', auto: 'steps', done: false },
     { id: 'd-water', title: "BOIRE 2 L D'EAU", type: 'daily', done: false },
