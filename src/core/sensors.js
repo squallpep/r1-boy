@@ -105,17 +105,63 @@ export function setPedometer(enabled) {
 }
 
 // ---- Compass heading (degrees, 0 = north) ----
+// Diagnostic counters shown by the compass: which orientation events actually arrive.
+export const headingStats = { abs: 0, rel: 0, empty: 0 };
+
+// Heading of the device top edge. Flat: 360 - alpha. Held upright: tilt-compensated (W3C formula).
+function headingFrom(alpha, beta, gamma) {
+  if (Math.abs(beta ?? 0) < 45) return (360 - alpha + 360) % 360;
+  const d = Math.PI / 180;
+  const cX = Math.cos(beta * d), cY = Math.cos(gamma * d), cZ = Math.cos(alpha * d);
+  const sX = Math.sin(beta * d), sY = Math.sin(gamma * d), sZ = Math.sin(alpha * d);
+  const vx = -cZ * sY - sZ * sX * cY;
+  const vy = -sZ * sY + cZ * sX * cY;
+  let h = Math.atan(vx / vy);
+  if (vy < 0) h += Math.PI;
+  else if (vx < 0) h += 2 * Math.PI;
+  return (h * 180) / Math.PI;
+}
+
+/**
+ * fn(heading, source): source is 'mag' (absolute, magnetometer) or 'gyro'
+ * (relative alpha only; corrected by the north calibration offset).
+ * Absolute events win: once one arrives, relative ones are ignored.
+ */
 export function onHeading(fn) {
+  let gotAbs = false;
   const handler = (e) => {
-    let h = null;
-    if (typeof e.webkitCompassHeading === 'number') h = e.webkitCompassHeading;
-    else if (e.absolute && e.alpha != null) h = 360 - e.alpha;
-    else if (e.alpha != null && e.type === 'deviceorientationabsolute') h = 360 - e.alpha;
-    if (h != null) fn((h + 360) % 360);
+    if (e.alpha == null && typeof e.webkitCompassHeading !== 'number') {
+      headingStats.empty++;
+      return;
+    }
+    if (typeof e.webkitCompassHeading === 'number') {
+      headingStats.abs++;
+      gotAbs = true;
+      return fn(e.webkitCompassHeading, 'mag');
+    }
+    const h = headingFrom(e.alpha, e.beta, e.gamma);
+    if (e.absolute || e.type === 'deviceorientationabsolute') {
+      headingStats.abs++;
+      gotAbs = true;
+      return fn(h, 'mag');
+    }
+    headingStats.rel++;
+    if (!gotAbs) fn((h - (state.settings.compassOffset || 0) + 360) % 360, 'gyro', h);
   };
-  const evt = 'ondeviceorientationabsolute' in window ? 'deviceorientationabsolute' : 'deviceorientation';
-  window.addEventListener(evt, handler);
-  return () => window.removeEventListener(evt, handler);
+  window.addEventListener('deviceorientationabsolute', handler);
+  window.addEventListener('deviceorientation', handler);
+  return () => {
+    window.removeEventListener('deviceorientationabsolute', handler);
+    window.removeEventListener('deviceorientation', handler);
+  };
+}
+
+// Bearing in degrees from a to b ({lat, lon}).
+export function bearing(a, b) {
+  const d = Math.PI / 180;
+  const y = Math.sin((b.lon - a.lon) * d) * Math.cos(b.lat * d);
+  const x = Math.cos(a.lat * d) * Math.sin(b.lat * d) - Math.sin(a.lat * d) * Math.cos(b.lat * d) * Math.cos((b.lon - a.lon) * d);
+  return ((Math.atan2(y, x) / d) + 360) % 360;
 }
 
 // ---- Battery ----

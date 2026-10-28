@@ -1,7 +1,8 @@
 // Full-screen tool views opened from the INV lists. Each: { mount(el), unmount(), onScroll(d), onClick() }.
-import { emit, on } from '../../core/store.js';
+import { state, save, emit, on } from '../../core/store.js';
 import { sfx } from '../../core/sfx.js';
-import { onAccel, onHeading } from '../../core/sensors.js';
+import { onAccel, onHeading, headingStats, bearing } from '../../core/sensors.js';
+import { gpsUsable, distance } from '../../core/geo.js';
 import { toast, pad, bar } from '../../ui/ui.js';
 
 // ---------------- Timer (keeps running when the view is closed) ----------------
@@ -150,35 +151,76 @@ function dialSvg() {
     <path d="M50 1 v8" stroke-width="2"/></svg>`;
 }
 
+// Sources, best first: magnetometer (absolute orientation), gyroscope (relative, calibrated
+// by pointing north and clicking), GPS course computed while walking.
 export const compassView = {
   mount(el) {
-    el.innerHTML = `<div class="tool-view">${dialSvg()}<div class="big hd">---°</div><div class="hint msg">ATTENTE DU CAPTEUR...</div></div>`;
+    el.innerHTML = `<div class="tool-view">${dialSvg()}<div class="big hd">---°</div>
+      <div class="hint msg wrap center">ATTENTE DU CAPTEUR...</div><div class="hint diag"></div></div>`;
     const rose = el.querySelector('.rose');
-    let got = false;
+    const msg = (t) => { el.querySelector('.msg').textContent = t; };
     let shown = 0;
-    const set = (h, src) => {
-      got = true;
+    let lastSensor = 0;
+    let gpsState = '...';
+    this.src = null;
+    this.rawGyro = null;
+    const set = (h, label) => {
       // Unwrap so the CSS transition takes the short way around.
-      let diff = ((h - (shown % 360)) + 540) % 360 - 180;
-      shown += diff;
+      shown += ((h - (shown % 360)) + 540) % 360 - 180;
       rose.style.transform = `rotate(${-shown}deg)`;
       el.querySelector('.hd').textContent = `${dirName(h)} ${pad(Math.round(h), 3)}°`;
-      el.querySelector('.msg').textContent = src;
+      msg(label);
     };
-    this.off = onHeading((h) => set(h, 'MAGNÉTOMÈTRE'));
-    this.fallback = setTimeout(() => {
-      if (got) return;
-      el.querySelector('.msg').textContent = 'PAS DE MAGNÉTOMÈTRE · CAP GPS EN MARCHE';
-      this.watch = navigator.geolocation?.watchPosition((p) => {
-        if (p.coords.heading != null && !isNaN(p.coords.heading)) set(p.coords.heading, 'CAP GPS');
-      }, () => {}, { enableHighAccuracy: true });
-    }, 3000);
+
+    this.off = onHeading((h, src, raw) => {
+      lastSensor = Date.now();
+      this.src = src;
+      if (src === 'gyro') this.rawGyro = raw;
+      set(h, src === 'mag' ? 'MAGNÉTOMÈTRE'
+        : state.settings.compassOffset == null ? 'GYROSCOPE · FACE AU NORD, CLIC POUR CALIBRER'
+          : 'GYROSCOPE CALIBRÉ · CLIC : RECALIBRER');
+    });
+
+    if (gpsUsable()) {
+      let prev = null;
+      this.watch = navigator.geolocation.watchPosition((p) => {
+        gpsState = 'OK';
+        const cur = { lat: p.coords.latitude, lon: p.coords.longitude };
+        let h = p.coords.heading;
+        const moved = prev ? distance(prev, cur) : 0;
+        if ((h == null || isNaN(h)) && moved >= 8) h = bearing(prev, cur);
+        if (!prev || moved >= 8) prev = cur;
+        if (h != null && !isNaN(h) && Date.now() - lastSensor > 2000) set(h, 'CAP GPS (EN MARCHE)');
+      }, (e) => { gpsState = e.code === 1 ? 'REFUSÉ' : 'ERREUR'; }, { enableHighAccuracy: true });
+    } else {
+      gpsState = window.isSecureContext ? 'ABSENT' : 'HTTP';
+    }
+
+    // Live diagnostic: tells which sources the device really provides.
+    this.diagT = setInterval(() => {
+      el.querySelector('.diag').textContent =
+        `ABS ${headingStats.abs} · REL ${headingStats.rel} · VIDE ${headingStats.empty} · GPS ${gpsState}`;
+      if (!lastSensor && el.querySelector('.hd').textContent === '---°') {
+        msg(gpsState === 'OK' ? 'PAS DE CAPTEUR D\'ORIENTATION · MARCHEZ 10 M POUR LE CAP GPS'
+          : 'AUCUNE SOURCE DE CAP DISPONIBLE');
+      }
+    }, 500);
   },
   unmount() {
     this.off();
-    clearTimeout(this.fallback);
+    clearInterval(this.diagT);
     if (this.watch != null) navigator.geolocation.clearWatch(this.watch);
     this.watch = null;
+  },
+  onClick() {
+    if (this.src === 'gyro' && this.rawGyro != null) {
+      state.settings.compassOffset = this.rawGyro;
+      save();
+      sfx.select();
+      toast('BOUSSOLE', 'NORD CALIBRÉ');
+    } else {
+      toast('BOUSSOLE', this.src === 'mag' ? 'MAGNÉTOMÈTRE : AUCUN CALIBRAGE REQUIS' : 'AUCUN GYROSCOPE DÉTECTÉ');
+    }
   },
 };
 
