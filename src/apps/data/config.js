@@ -5,6 +5,7 @@ import { sfx } from '../../core/sfx.js';
 import { List } from '../../ui/list.js';
 import { esc, promptText, confirmBox, toast } from '../../ui/ui.js';
 import { icons } from '../../ui/icons.js';
+import { BUILD } from '../../core/update.js';
 
 const THEMES = { green: 'VERT', amber: 'AMBRE', blue: 'BLEU', white: 'BLANC' };
 
@@ -62,7 +63,7 @@ const ITEMS = [
   },
   {
     name: () => 'À PROPOS',
-    desc: 'R1-BOY 3000 MK IV · v0.1<br>Multitool rétro pour Rabbit R1.<br>Météo : Open-Meteo · Carte : © OpenStreetMap · Radio : radio-browser.info',
+    desc: () => `R1-BOY 3000 MK IV · VERSION ${BUILD}<br>Multitool rétro pour Rabbit R1.<br>Météo : Open-Meteo · Carte : © OpenStreetMap · Radio : radio-browser.info`,
     act() { toast('R1-BOY 3000', 'ATOMIK INDUSTRIES\nPROPRIÉTÉ DU PORTEUR'); },
   },
 ];

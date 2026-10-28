@@ -1,6 +1,7 @@
 // Terminal-style boot sequence, then the logo screen. Resolves on the first press.
 import { sfx } from './sfx.js';
 import { mascot } from '../ui/icons.js';
+import { BUILD } from './update.js';
 
 const LINES = [
   'ATOMIK INDUSTRIES (C) 2077',
@@ -33,7 +34,7 @@ export function boot(app) {
       clearTimeout(timer);
       el.innerHTML = `<div class="boot-logo">${mascot('mascot bob')}
         <div class="title">R1-BOY 3000</div>
-        <div class="hint">ASSISTANT PERSONNEL ATOMIK</div>
+        <div class="hint">ASSISTANT PERSONNEL ATOMIK · V${BUILD}</div>
         <div class="press">▶ APPUYEZ POUR DÉMARRER</div>
         <div class="hint" style="margin-top:6px">MOLETTE : NAVIGUER · CLIC : VALIDER<br>APPUI LONG : ONGLETS / RETOUR</div>
       </div>`;

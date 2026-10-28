@@ -8,12 +8,12 @@ if (!url) {
   console.error('Usage: npm run qr -- <https://url-of-the-deployed-app/>');
   process.exit(1);
 }
-const base = url.endsWith('/') ? url : url + '/';
+const base = new URL(url);
 const payload = JSON.stringify({
   title: 'R1-BOY 3000',
-  url: base,
+  url: base.toString(),
   description: 'Multitool rétro à phosphore : radio, TV, quêtes, outils, météo, carte.',
-  iconUrl: base + 'icon.svg',
+  iconUrl: new URL('icon.svg', base).toString(),
   themeColor: '#1aff80',
 });
 

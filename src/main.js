@@ -4,6 +4,7 @@ import { load, state, save, on, flush } from './core/store.js';
 import { initInput } from './core/input.js';
 import { sfx } from './core/sfx.js';
 import { boot } from './core/boot.js';
+import { checkUpdate } from './core/update.js';
 import { levelInfo, checkPerks } from './core/xp.js';
 import { battery, initBattery, rollDay, setPedometer } from './core/sensors.js';
 import { setRoot, getModal, pad } from './ui/ui.js';
@@ -142,6 +143,7 @@ const input = {
 };
 
 async function start() {
+  checkUpdate();
   await load();
   applyTheme();
   setRoot(app);
@@ -166,5 +168,8 @@ async function start() {
   checkPerks();
 }
 
-document.addEventListener('visibilitychange', () => { if (document.hidden) flush(); });
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) flush();
+  else checkUpdate();
+});
 start();
