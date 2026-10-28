@@ -5,6 +5,7 @@ import { initInput } from './core/input.js';
 import { sfx } from './core/sfx.js';
 import { boot } from './core/boot.js';
 import { checkUpdate } from './core/update.js';
+import { changeVolume } from './core/volume.js';
 import { levelInfo, checkPerks } from './core/xp.js';
 import { battery, initBattery, rollDay, setPedometer } from './core/sensors.js';
 import { setRoot, getModal, pad } from './ui/ui.js';
@@ -76,7 +77,7 @@ function renderHeader() {
 function renderStatus() {
   const { lvl, cur, need } = levelInfo();
   const d = new Date();
-  const hp = battery.level == null ? '--' : battery.level;
+  const hp = battery.level == null ? '--' : `${battery.level}%${battery.charging ? '⚡︎' : ''}`;
   const note = player.status === 'play' ? '<span class="note">♪</span>' : '';
   statusEl.innerHTML = `<div class="sb">HP ${hp}</div>
     <div class="sb grow">NIV ${lvl}<div class="bar"><i style="width:${(cur / need) * 100}%"></i></div>${note}</div>
@@ -113,7 +114,16 @@ function cycle(dir) {
   go(t, s, { deferMount: true });
 }
 
+// Try to hide the R1 system bar (only works if the web view allows fullscreen).
+let triedFs = false;
+function tryFullscreen() {
+  if (triedFs) return;
+  triedFs = true;
+  try { document.documentElement.requestFullscreen?.().catch(() => {}); } catch {}
+}
+
 const input = {
+  volume: (d) => changeVolume(d),
   scroll(dir) {
     const m = getModal();
     if (m) return m.scroll(dir);
@@ -122,6 +132,7 @@ const input = {
   },
   click() {
     sfx.unlock();
+    tryFullscreen();
     const m = getModal();
     if (m) return m.click();
     if (mode === 'tabs') {

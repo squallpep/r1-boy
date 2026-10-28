@@ -1,5 +1,5 @@
 // Global radio player: keeps playing across tabs, static between stations, analyser when CORS allows.
-import { state, save, emit } from '../../core/store.js';
+import { state, save, emit, on } from '../../core/store.js';
 import { checkPerks } from '../../core/xp.js';
 import { sfx } from '../../core/sfx.js';
 
@@ -15,6 +15,8 @@ let audio = null;
 let staticH = null;
 let minuteInt = null;
 let mediaSrc = null;
+
+on('volume', (v) => { if (audio) audio.volume = v; });
 
 export async function searchStations(params) {
   const q = new URLSearchParams({ hidebroken: 'true', order: 'votes', reverse: 'true', limit: '12', ...params });
@@ -63,6 +65,7 @@ function newAudio(cors) {
   mediaSrc = null;
   player.analyser = null;
   if (cors) audio.crossOrigin = 'anonymous';
+  audio.volume = state.settings.volume ?? 0.8;
   audio.preload = 'none';
   return audio;
 }

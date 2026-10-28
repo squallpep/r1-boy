@@ -10,7 +10,7 @@ const MAX_CHANNELS = 800;
 const FILTER = { filter: true }; // first list row: phosphor / natural picture toggle
 let channels = null;
 let loadedUrl = null;
-let root, list, video, hls, playingIdx = -1, fs = false, failT, staticH, offIptv;
+let root, list, video, hls, playingIdx = -1, fs = false, failT, staticH, offIptv, offVol;
 
 function parseM3U(text) {
   const out = [];
@@ -135,6 +135,7 @@ export default {
     root.innerHTML = `<div class="tv-wrap ${state.settings.tvFilter ? 'phos' : ''}"><video playsinline></video><div class="tv-msg"></div></div><div class="tv-list"></div>`;
     el.append(root);
     video = root.querySelector('video');
+    video.volume = state.settings.volume ?? 0.8;
     video.addEventListener('playing', () => {
       clearTimeout(failT);
       staticH?.stop();
@@ -162,11 +163,13 @@ export default {
     root.querySelector('.tv-list').style.cssText = 'flex:1;min-height:0';
     root.querySelector('.tv-wrap').addEventListener('click', () => playingIdx >= 0 && setFs(!fs));
     offIptv = on('iptv', () => { channels = null; });
+    offVol = on('volume', (v) => { if (video) video.volume = v; });
     loadChannels();
   },
   unmount() {
     cleanupStream();
     offIptv();
+    offVol();
     video = null;
     root = null;
   },

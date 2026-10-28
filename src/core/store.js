@@ -10,6 +10,7 @@ const DEFAULTS = {
     tvFilter: true,
     aiVoice: true,
     mapPois: true,
+    volume: 0.8,
     iptvUrl: 'https://iptv-org.github.io/iptv/languages/fra.m3u',
     customRadio: '',
   },

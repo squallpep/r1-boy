@@ -1,5 +1,5 @@
 // All sounds are synthesized with Web Audio, no audio assets.
-import { state } from './store.js';
+import { state, on } from './store.js';
 
 let ctx, master, noiseBuf;
 
@@ -9,12 +9,14 @@ function ac() {
     if (!AC) return null;
     ctx = new AC();
     master = ctx.createGain();
-    master.gain.value = 0.35;
+    master.gain.value = 0.35 * (state.settings.volume ?? 0.8);
     master.connect(ctx.destination);
   }
   if (ctx.state === 'suspended') ctx.resume();
   return ctx;
 }
+
+on('volume', (v) => { if (master) master.gain.value = 0.35 * v; });
 
 const enabled = () => state.settings.sound && ac();
 

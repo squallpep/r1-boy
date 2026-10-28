@@ -1,11 +1,19 @@
 // Bridge to the rabbit LLM: PluginMessageHandler.postMessage -> window.onPluginMessage.
+import { emit } from './store.js';
+
 export const llmAvailable = () => typeof window.PluginMessageHandler !== 'undefined';
 
 let pending = null;
+let lateUntil = 0; // a reply to a timed-out/superseded request may still arrive: drop it
 
 window.onPluginMessage = (data) => {
   const p = pending;
-  if (!p) return;
+  if (!p && Date.now() < lateUntil) {
+    lateUntil = 0;
+    return;
+  }
+  // Messages we did not ask for (e.g. a voice exchange with rabbit) are shown by the IA screen.
+  if (!p) return emit('llm', parse(data));
   pending = null;
   clearTimeout(p.timer);
   p.resolve(parse(data));
@@ -29,18 +37,32 @@ function parse(data) {
   return { text: text.trim(), obj };
 }
 
+// Replies carry no request id, so requests are queued: one in flight, replies matched in order.
+let queue = Promise.resolve();
+
 /**
  * Ask the rabbit LLM. Resolves { text, obj } (obj = parsed JSON if any).
- * speak: the R1 reads the answer out loud. One request at a time.
+ * speak: the R1 reads the answer out loud.
  */
-export function askLLM(message, { speak = false, timeout = 45000 } = {}) {
+export function askLLM(message, opts) {
   if (!llmAvailable()) return Promise.reject(new Error('unavailable'));
-  if (pending) {
-    clearTimeout(pending.timer);
-    pending.reject(new Error('superseded'));
-  }
+  const run = () => send(message, opts);
+  const p = queue.then(run, run);
+  queue = p.catch(() => {});
+  return p;
+}
+
+function send(message, { speak = false, timeout = 45000 } = {}) {
   return new Promise((resolve, reject) => {
-    pending = { resolve, reject, timer: setTimeout(() => { pending = null; reject(new Error('timeout')); }, timeout) };
+    pending = {
+      resolve,
+      reject,
+      timer: setTimeout(() => {
+        pending = null;
+        lateUntil = Date.now() + 60000;
+        reject(new Error('timeout'));
+      }, timeout),
+    };
     window.PluginMessageHandler.postMessage(JSON.stringify({
       message,
       useLLM: true,
